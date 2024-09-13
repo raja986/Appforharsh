@@ -1,0 +1,275 @@
+[
+  {
+    "id": 1,
+    "name": "City Hospital",
+    "image_url": "https://example.com/city_hospital.jpg",
+    "booked": false
+  },
+  {
+    "id": 2,
+    "name": "General Hospital",
+    "image_url": "https://example.com/general_hospital.jpg",
+    "booked": true
+  }
+]
+
+dependencies {
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.picasso:picasso:2.71828'
+}
+public class Hospital {
+    private int id;
+    private String name;
+    private String imageUrl;
+    private boolean booked;
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public boolean isBooked() {
+        return booked;
+    }
+
+    public void setBooked(boolean booked) {
+        this.booked = booked;
+    }
+}
+public class BookingRequest {
+    private boolean emergency;
+
+    public BookingRequest(boolean emergency) {
+        this.emergency = emergency;
+    }
+
+    public boolean isEmergency() {
+        return emergency;
+    }
+
+    public void setEmergency(boolean emergency) {
+        this.emergency = emergency;
+    }
+}
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class ApiClient {
+    private static final String BASE_URL = "https://your-backend-url.com/api/"; // Replace with your backend URL
+    private static Retrofit retrofit;
+
+    public static Retrofit getClient() {
+        if (retrofit == null) {
+            retrofit = new Retrofit.Builder()
+                    .baseUrl(BASE_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
+        }
+        return retrofit;
+    }
+}
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.GET;
+import retrofit2.http.POST;
+import retrofit2.http.Path;
+
+public interface HospitalApi {
+    @GET("hospitals")
+    Call<List<Hospital>> getHospitals();
+
+    @POST("hospitals/{id}/book")
+    Call<Void> bookHospital(@Path("id") int hospitalId, @Body BookingRequest bookingRequest);
+}
+import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.RecyclerView;
+import com.squareup.picasso.Picasso;
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class HospitalAdapter extends RecyclerView.Adapter<HospitalAdapter.ViewHolder> {
+    private List<Hospital> hospitalList;
+    private Context context;
+    private HospitalApi hospitalApi;
+
+    public HospitalAdapter(List<Hospital> hospitalList, Context context) {
+        this.hospitalList = hospitalList;
+        this.context = context;
+        this.hospitalApi = ApiClient.getClient().create(HospitalApi.class); // Initialize Retrofit
+    }
+
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.hospital_item, parent, false);
+        return new ViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        Hospital hospital = hospitalList.get(position);
+        holder.hospitalName.setText(hospital.getName());
+        Picasso.get().load(hospital.getImageUrl()).into(holder.hospitalImage);
+
+        holder.itemView.setOnClickListener(v -> {
+            if (hospital.isBooked()) {
+                Toast.makeText(context, "Already Booked", Toast.LENGTH_SHORT).show();
+            } else {
+                new AlertDialog.Builder(context)
+                        .setTitle("Book Emergency")
+                        .setMessage("Do you want to book an emergency at " + hospital.getName() + "?")
+                        .setPositiveButton("Book", (dialog, which) -> {
+                            // Call the booking API
+                            bookHospital(hospital, position);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+    }
+
+    @Override
+    public int getItemCount() {
+        return hospitalList.size();
+    }
+
+    public static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView hospitalName;
+        ImageView hospitalImage;
+
+        public ViewHolder(@NonNull View itemView) {
+            super(itemView);
+            hospitalName = itemView.findViewById(R.id.hospital_name);
+            hospitalImage = itemView.findViewById(R.id.hospital_image);
+        }
+    }
+
+    private void bookHospital(Hospital hospital, int position) {
+        BookingRequest bookingRequest = new BookingRequest(true); // Emergency booking
+        Call<Void> call = hospitalApi.bookHospital(hospital.getId(), bookingRequest);
+
+        call.enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    hospital.setBooked(true);
+                    notifyItemChanged(position);
+                    Toast.makeText(context, "Hospital booked successfully", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(context, "Booking failed", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(context, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+}
+<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/recycler_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/hospital_image"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/hospital_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:paddingTop="8dp"
+        android:textStyle="bold" />
+</LinearLayout>
+import android.os.Bundle;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class MainActivity extends AppCompatActivity {
+    private RecyclerView recyclerView;
+    private HospitalAdapter hospitalAdapter;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        recyclerView = findViewById(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        loadHospitals();
+    }
+
+    private void loadHospitals() {
+        HospitalApi api = ApiClient.getClient().create(HospitalApi.class);
+        Call<List<Hospital>> call = api.getHospitals();
+        call.enqueue(new Callback<List<Hospital>>() {
+            @Override
+            public void onResponse(Call<List<Hospital>> call, Response<List<Hospital>> response) {
+                if (response.isSuccessful()) {
+                    List<Hospital> hospitalList = response.body();
+                    hospitalAdapter = new HospitalAdapter(hospitalList, MainActivity.this);
+                    recyclerView.setAdapter(hospitalAdapter);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Hospital>> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Failed to load hospitals", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+}
+<uses-permission android:name="android.permission.INTERNET"/>
+
+
+
