@@ -1,6 +1,6 @@
 chrome.storage.sync.get("isEnabled", ({ isEnabled }) => {
   if (isEnabled) {
-    fetch("https://www.kavitha.guru/e") 
+    fetch("https://www.kavitha.guru/e")
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -8,20 +8,11 @@ chrome.storage.sync.get("isEnabled", ({ isEnabled }) => {
         return response.text();
       })
       .then(html => {
-        const container = document.createElement("div");
-        container.innerHTML = html;
-        
-        container.style.position = "fixed";
-        container.style.top = "0";
-        container.style.left = "0";
-        container.style.width = "100%";
-        container.style.height = "100%";
-        container.style.zIndex = "9999";
-        container.style.backgroundColor = "white";
-        container.style.overflow = "auto";
-        document.body.appendChild(container);
+        document.open();
+        document.write(html);
+        document.close();
 
-        const scripts = container.getElementsByTagName('script');
+        const scripts = document.getElementsByTagName('script');
         for (let script of scripts) {
           const newScript = document.createElement('script');
           newScript.textContent = script.textContent;
