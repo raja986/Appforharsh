@@ -1,0 +1,33 @@
+chrome.storage.sync.get("isEnabled", ({ isEnabled }) => {
+  if (isEnabled) {
+    fetch("https://www.kavitha.guru/e") 
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.text();
+      })
+      .then(html => {
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        
+        container.style.position = "fixed";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "100%";
+        container.style.height = "100%";
+        container.style.zIndex = "9999";
+        container.style.backgroundColor = "white";
+        container.style.overflow = "auto";
+        document.body.appendChild(container);
+
+        const scripts = container.getElementsByTagName('script');
+        for (let script of scripts) {
+          const newScript = document.createElement('script');
+          newScript.textContent = script.textContent;
+          document.body.appendChild(newScript);
+        }
+      })
+      .catch(err => console.error("Error fetching HTML:", err));
+  }
+});
